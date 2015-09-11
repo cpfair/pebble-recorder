@@ -40,7 +40,7 @@ static char time_is_frozen = 0;
 static int pending_step = 0;
 static int driver_pid = -1;
 
-static const int max_intercall_delta = 20000; // ns, = 200us, approx 2x realtime based on my measurements
+static const int max_intercall_delta = 2000000; // ns, = 200us, approx 2x realtime based on my measurements
 
 #define MAINT_PERIOD 1024
 static int maint_counter=0;
@@ -48,16 +48,11 @@ static int maint_counter=0;
 static void sigusr_handler(int signo)
 {
   if (signo == SIG_STEPTIME) {
-    
-      
-    // printf("Stepping time %d now %lldus + %llds\n", timestep, increment_us, increment_s);
-    // accumulators[1].lastourval += timestep * 1000LL;
     // We can't just bump the clock by `timestep` because the RTC throws a fit
     // (normally it sees a ~10000ns delta between gettimeofday calls)
     // So, we need to fast-forward the clock bit by bit
     // (implemented in filter_time)
     pending_step += timestep;
-    // printf("Stepping time %dns, pending %dns\n", timestep, pending_step);
   } else if (signo == SIG_FREEZETIME) {
     // Freeze/unfreeze time
     if (time_is_frozen) {
@@ -102,27 +97,23 @@ static long long int filter_time(long long int nanos, struct tiacc* acc) {
     maint();
     long long int delta = nanos - acc->lastsysval;
     acc->lastsysval = nanos;
-    // printf("Delta %d", delta);
+
     delta = time_is_frozen ? timestep_idle : delta;
     if (pending_step) {
-        // printf("Dec pending step %d\n", pending_step);
         if (delta + pending_step > max_intercall_delta) {
             pending_step -= max_intercall_delta - delta;
             delta = max_intercall_delta;
         } else {
             delta += pending_step;
             pending_step = 0;
-            // printf("Finished pend\n");
             if (driver_pid > 0) {
                 kill(driver_pid, SIGUSR1);
             }
         }
     }
-    // printf(" postscale %d\n", delta);
-    acc->lastourval+=delta;
+    acc->lastourval += delta;
     return acc->lastourval;
 }
-
 
 int gettimeofday(struct timeval *tv, void *tz) {
     if(!orig_gettimeofday) {
@@ -130,12 +121,10 @@ int gettimeofday(struct timeval *tv, void *tz) {
         (*orig_gettimeofday)(&timebase_gettimeofday, NULL);
     }
     int ret = orig_gettimeofday(tv, tz);
-    
     long long q = 1000000LL * (tv->tv_sec - timebase_gettimeofday.tv_sec)
         + (tv->tv_usec - timebase_gettimeofday.tv_usec);
 
     q = filter_time(q*1000LL, accumulators+1)/1000;
-    // printf("Hello! timeshift is %d/%d\n", num, denom);
 
     tv->tv_sec = (q/1000000)+timebase_gettimeofday.tv_sec + shift;
     tv->tv_usec = q%1000000+timebase_gettimeofday.tv_usec;
@@ -146,4 +135,3 @@ int gettimeofday(struct timeval *tv, void *tz) {
 
     return ret;
 }
-

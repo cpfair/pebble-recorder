@@ -17,6 +17,7 @@ FNULL = open(os.devnull, 'w')
 SIG_FREEZETIME = signal.SIGURG
 SIG_STEPTIME = signal.SIGUSR2
 
+
 class FilePatch(object):
     def __init__(self, path, patcher):
         self.patcher = patcher
@@ -140,7 +141,6 @@ class PebbleRecorder:
                 logger.info("Patched emulator already booted")
                 return
         logger.info("Starting patched emulator")
-        # subprocess.Popen([self.sdk_pebble_tool, "kill"]).wait()
 
         timestep_env = os.environ.copy()
         timestep_env["DYLD_FORCE_FLAT_NAMESPACE"] = "1"
@@ -162,8 +162,6 @@ class PebbleRecorder:
         self._connect_qmp()
 
     def capture_loop(self):
-
-        do_capture = True
         rtc_interlock = threading.Semaphore(0)
         def interlock_release(signo, frame):
             rtc_interlock.release()
@@ -174,7 +172,7 @@ class PebbleRecorder:
             os.mkdir(".pr-captures")
 
         for filen in glob.glob(".pr-captures/*"):
-            os.remove(os.path.join(".pr-captures", filen))
+            os.remove(os.path.join(filen))
 
         qemu_pid = self.qemu_pid
         # Freeze time in the emulator
@@ -192,11 +190,7 @@ class PebbleRecorder:
                 while not rtc_interlock.acquire(False):
                     time.sleep(0.01)
                 self._qmp_sock.sendall("{\"execute\":\"screendump\",\"arguments\":{\"filename\":\".pr-captures/%d\"}}" % frames)
-                # time.sleep(0.033 * 2)
-                sys.stdout.write("\r%d frames NOT! captured" % frames)
-                sys.stdout.flush()
                 frames += 1
-                # raw_input() q
         except KeyboardInterrupt:
             pass
         sys.stdout.write("\n")
@@ -209,6 +203,5 @@ class PebbleRecorder:
         self.boot_emulator()
         self.capture_loop()
 
-
-def run():
-    PebbleRecorder().run("basalt")
+def run(platform="basalt"):
+    PebbleRecorder().run(platform)
