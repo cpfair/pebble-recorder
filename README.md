@@ -2,6 +2,10 @@ pebble-recorder
 ===============
 A tool for making Pebble screen recordings. Built for OS X, though with some tweaks it'll work on *nix.
 
+## Note
+
+This __does not__ currently support any recent version of the Pebble SDK. Significant changes have been made to the SDK folder structure and emulator configuration, meaning this code will no longer work out-of-the-box. One might investigate the new emulator debugging features to achieve smooth & lossless recording, the original goal of this tool.
+
 ## Requirements
 
 - Python 2.7
